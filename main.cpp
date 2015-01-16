@@ -86,6 +86,9 @@ public:
         return *this;
     }
 };
+Point operator*(Point p, double f) {
+    return {p.x*f, p.y*f};
+}
 
 inline Point sinusoidal(double x, double y) {
     return {sin(x), sin(y)};
@@ -109,12 +112,8 @@ Point apply_transform(Point p, const Xform& xform) {
     Point rp{0.0, 0.0};
     p = affine_transform(p, xform.a, xform.b, xform.c, xform.d, xform.e, xform.f);
 
-    Point p1 = sinusoidal(p.x, p.y);
-    p1 *= xform.w_sinusoidal;
-    rp += p1;
-    Point p2 = spherical(p.x, p.y);
-    p2 *= xform.w_spherical;
-    rp += p2;
+    rp += sinusoidal(p.x, p.y) * xform.w_sinusoidal;
+    rp += spherical(p.x, p.y) * xform.w_spherical;
     return rp;
 }
 
