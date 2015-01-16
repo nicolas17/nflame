@@ -27,6 +27,7 @@ struct Color {
     unsigned char r,g,b;
 };
 
+template<typename C>
 class Image
 {
 public:
@@ -37,68 +38,39 @@ public:
     Image(const Image&) = delete;
     Image& operator=(const Image&) = delete;
 
-    /***/ Color& operator()(uint x, uint y) /***/ { return m_buffer[m_width*y + x]; }
-    const Color& operator()(uint x, uint y) const { return m_buffer[m_width*y + x]; }
-
-    void set_pixel(uint x, uint y, const Color& color) { (*this)(x,y) = color; }
+    /***/ C& pixel(uint x, uint y) /***/ { return m_buffer[m_width*y + x]; }
+    const C& pixel(uint x, uint y) const { return m_buffer[m_width*y + x]; }
 
     uint m_width, m_height;
-    Color* m_buffer;
+    C* m_buffer;
 };
 
-Image::Image(uint width, uint height)
+template<typename C>
+Image<C>::Image(uint width, uint height)
     : m_width(width)
     , m_height(height)
 {
-    m_buffer = new Color[width*height];
+    m_buffer = new C[width*height];
 }
-Image::~Image()
+template<typename C>
+Image<C>::~Image()
 {
     delete[] m_buffer;
 }
-void writeImage(const Image& img, FILE* fp)
+
+void writeImage(const Image<Color>& img, FILE* fp)
 {
     fprintf(fp, "P3\n%u %u\n256\n", img.m_width, img.m_height);
 
     for (uint y=0; y < img.m_height; ++y) {
         for (uint x=0; x < img.m_width; ++x) {
-            const Color& pixel = img(x,y);
+            const Color& pixel = img.pixel(x,y);
             fprintf(fp, "%u %u %u ", pixel.r, pixel.g, pixel.b);
         }
         fprintf(fp, "\n");
     }
     fprintf(fp, "\n");
 }
-
-
-class Histogram
-{
-public:
-    Histogram(uint width, uint height);
-    ~Histogram();
-
-    // non-copyable
-    Histogram(const Histogram&) = delete;
-    Histogram& operator=(const Histogram&) = delete;
-
-    double& bucket(uint x, uint y) /***/ { return m_buffer[m_width*y + x]; }
-    double  bucket(uint x, uint y) const { return m_buffer[m_width*y + x]; }
-
-    uint m_width, m_height;
-    double* m_buffer;
-};
-
-Histogram::Histogram(uint width, uint height)
-    : m_width(width)
-    , m_height(height)
-{
-    m_buffer = new double[width*height];
-}
-Histogram::~Histogram()
-{
-    delete[] m_buffer;
-}
-
 
 class Point {
 public:
@@ -148,8 +120,8 @@ Point apply_transform(Point p, const Xform& xform) {
 
 int main(int argc, char **argv)
 {
-    Image img(512, 512);
-    Histogram histogram(512, 512);
+    Image<Color> img(512, 512);
+    Image<double> histogram(512, 512);
 
     std::default_random_engine rnd;
     std::uniform_real_distribution<double> real_dist(-1.0, 1.0);
@@ -170,7 +142,7 @@ int main(int argc, char **argv)
 
         if (it > 20) {
             if (p.x > -1 && p.x < 1 && p.y > -1 && p.y < 1) {
-                histogram.bucket((p.x+1)/2*img.m_width, (p.y+1)/2*img.m_height) += 1;
+                histogram.pixel((p.x+1)/2*img.m_width, (p.y+1)/2*img.m_height) += 1;
             }
         }
     }
@@ -178,8 +150,8 @@ int main(int argc, char **argv)
     double max_sample = *std::max_element(&histogram.m_buffer[0], &histogram.m_buffer[histogram.m_width * histogram.m_height]);
     for (uint y=0; y < img.m_height; ++y) {
         for (uint x=0; x < img.m_width; ++x) {
-            int p = log(histogram.bucket(x,y))*(256./log(max_sample));
-            img(x,y) = {p,p,p};
+            int p = log(histogram.pixel(x,y))*(256./log(max_sample));
+            img.pixel(x,y) = {p,p,p};
         }
     }
 
